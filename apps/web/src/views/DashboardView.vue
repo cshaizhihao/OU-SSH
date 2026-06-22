@@ -6,8 +6,8 @@
     <aside class="sidebar w-64 h-full flex flex-col justify-between py-6">
       <div>
         <div class="px-6 mb-10 flex items-center gap-3">
-          <div class="w-8 h-8 rounded-lg bg-brand-blue flex items-center justify-center shadow-md shadow-blue-500/30">
-            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path></svg>
+          <div class="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-md shadow-blue-500/20 overflow-hidden">
+            <img :src="logoUrl" alt="OU-SSH" class="w-full h-full object-cover">
           </div>
           <h1 class="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-brand-blue to-brand-purple tracking-tight">OU-SSH</h1>
         </div>
@@ -32,13 +32,18 @@
         </nav>
       </div>
 
-      <div class="px-6 flex items-center gap-3" @click="openSecuritySettings">
-        <div class="w-9 h-9 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold text-sm shadow-md">欧</div>
-        <div class="text-sm">
-          <p class="font-bold text-slate-800">{{ auth.user?.username || 'Admin' }}</p>
-          <p class="text-xs text-slate-500">System Manager</p>
+      <button type="button" class="mx-4 px-3 py-3 rounded-xl flex items-center gap-3 text-left transition-all hover:bg-brand-blueLight hover:shadow-sm group" @click="openSecuritySettings">
+        <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-md shadow-blue-500/20 overflow-hidden shrink-0">
+          <img :src="logoUrl" alt="Admin" class="w-full h-full object-cover">
         </div>
-      </div>
+        <div class="text-sm min-w-0 flex-1">
+          <p class="font-bold text-slate-800 truncate">{{ auth.user?.username || 'Admin' }}</p>
+          <p class="text-xs text-slate-500 group-hover:text-brand-blue font-semibold">安全设定</p>
+        </div>
+        <svg class="w-4 h-4 text-slate-400 group-hover:text-brand-blue transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+        </svg>
+      </button>
     </aside>
 
     <main class="flex-1 relative z-10 p-10 overflow-hidden flex items-center justify-center">
@@ -309,6 +314,7 @@ import { useRoute, useRouter } from 'vue-router';
 import gsap from 'gsap';
 import { useAuthStore } from '../stores/auth.js';
 import { apiRequest, apiUrl } from '../services/api.js';
+import logoUrl from '../assets/ou-logo.jpg';
 
 const route = useRoute();
 const router = useRouter();
