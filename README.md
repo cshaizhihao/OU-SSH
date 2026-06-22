@@ -1,13 +1,13 @@
 # OU-SSH
 
-[![release](https://img.shields.io/badge/release-v0.2.7-blue)](https://github.com/cshaizhihao/OU-SSH)
+[![release](https://img.shields.io/badge/release-v0.2.8-blue)](https://github.com/cshaizhihao/OU-SSH)
 [![stack](https://img.shields.io/badge/stack-Vue%203%20%2B%20Express%20%2B%20SQLite-green)](https://github.com/cshaizhihao/OU-SSH)
 
 OU-SSH 是一个服务器节点管理面板，包含本地登录、GitHub OAuth、SSH 密钥生成、新机初始化脚本和安全设定流程。
 
 ## 版本
 
-`v0.2.7`
+`v0.2.8`
 
 ## 功能
 

@@ -448,7 +448,13 @@ async function saveSecuritySettings() {
     securityForm.confirmPassword = '';
     saveText.value = '已保存';
   } catch (error) {
-    saveText.value = '保存失败';
+    const messages = {
+      current_password_invalid: '当前密码错误',
+      new_password_required: '请输入新密码',
+      password_too_short: '密码至少 6 位',
+      username_required: '请输入账号'
+    };
+    saveText.value = messages[error.message] || '保存失败';
   }
 }
 

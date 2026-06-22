@@ -9,11 +9,7 @@ router.patch('/profile', requireAuth, (req, res) => {
     const user = updateProfile(req.user.id, req.body);
     return res.json({ user: toPublicUser(user) });
   } catch (error) {
-    const status = error.message === 'current_password_invalid'
-      ? 401
-      : error.message === 'new_username_required'
-        ? 422
-        : 400;
+    const status = error.message === 'current_password_invalid' ? 401 : 400;
     return res.status(status).json({ error: error.message || 'profile_update_failed' });
   }
 });

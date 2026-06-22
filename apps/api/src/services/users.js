@@ -56,10 +56,6 @@ function updateProfile(userId, payload) {
     }
   }
 
-  if (current.must_change_credentials && nextUsername === current.username) {
-    throw new Error('new_username_required');
-  }
-
   if (current.must_change_credentials && !nextPassword) {
     throw new Error('new_password_required');
   }
