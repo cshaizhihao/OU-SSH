@@ -42,6 +42,10 @@ ensure_docker() {
     curl -fsSL https://get.docker.com | sh
   fi
 
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl enable --now docker >/dev/null 2>&1 || true
+  fi
+
   if ! docker compose version >/dev/null 2>&1; then
     echo "Docker Compose plugin is not available."
     exit 1
@@ -59,18 +63,37 @@ prepare_source() {
 write_env_file() {
   local frontend_url
   local host_ip
+  local env_file
   host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
   if [ -z "${host_ip:-}" ]; then
     host_ip="127.0.0.1"
   fi
   frontend_url="http://${host_ip}:${PORT}"
+  env_file="$TARGET_DIR/.env"
 
-  cat > "$TARGET_DIR/.env" <<EOF
+  if [ -f "$env_file" ] && [ "${OU_SSH_REGENERATE_ENV:-0}" != "1" ]; then
+    grep -q '^PORT=' "$env_file" || echo "PORT=3000" >> "$env_file"
+    grep -q '^DATA_DIR=' "$env_file" || echo "DATA_DIR=/data" >> "$env_file"
+    grep -q '^DATABASE_PATH=' "$env_file" || echo "DATABASE_PATH=/data/ou-ssh.sqlite" >> "$env_file"
+    grep -q '^FRONTEND_URL=' "$env_file" || echo "FRONTEND_URL=${frontend_url}" >> "$env_file"
+    grep -q '^CORS_ORIGIN=' "$env_file" || echo "CORS_ORIGIN=${frontend_url}" >> "$env_file"
+    grep -q '^GITHUB_CALLBACK_URL=' "$env_file" || echo "GITHUB_CALLBACK_URL=${frontend_url}/api/auth/github/callback" >> "$env_file"
+    grep -q '^OU_SSH_PORT=' "$env_file" || echo "OU_SSH_PORT=${PORT}" >> "$env_file"
+    grep -q '^DEFAULT_ADMIN_USERNAME=' "$env_file" || echo "DEFAULT_ADMIN_USERNAME=admin" >> "$env_file"
+    grep -q '^DEFAULT_ADMIN_PASSWORD=' "$env_file" || echo "DEFAULT_ADMIN_PASSWORD=admin" >> "$env_file"
+    grep -q '^JWT_SECRET=' "$env_file" || echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$env_file"
+    grep -q '^JWT_EXPIRES_IN=' "$env_file" || echo "JWT_EXPIRES_IN=7d" >> "$env_file"
+    return
+  fi
+
+  cat > "$env_file" <<EOF
 PORT=3000
 DATA_DIR=/data
 DATABASE_PATH=/data/ou-ssh.sqlite
 FRONTEND_URL=${frontend_url}
 CORS_ORIGIN=${frontend_url}
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
 GITHUB_CALLBACK_URL=${frontend_url}/api/auth/github/callback
 OU_SSH_PORT=${PORT}
 DEFAULT_ADMIN_USERNAME=admin
