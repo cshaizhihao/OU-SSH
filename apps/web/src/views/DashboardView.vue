@@ -29,14 +29,10 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
             操作与安全指南
           </a>
-          <a href="#" @click.prevent="switchView('view-security')" :class="navClass('view-security')" class="nav-item px-6 py-3.5 flex items-center gap-3">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0-1.105.895-2 2-2s2 .895 2 2-.895 2-2 2-2-.895-2-2zm-4 8v-1a4 4 0 014-4h4a4 4 0 014 4v1M6 10V8a6 6 0 1112 0v2"></path></svg>
-            安全设定
-          </a>
         </nav>
       </div>
 
-      <div class="px-6 flex items-center gap-3">
+      <div class="px-6 flex items-center gap-3" @click="openSecuritySettings">
         <div class="w-9 h-9 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold text-sm shadow-md">欧</div>
         <div class="text-sm">
           <p class="font-bold text-slate-800">{{ auth.user?.username || 'Admin' }}</p>
@@ -326,7 +322,7 @@ onMounted(async () => {
 
 function navClass(viewId) {
   return {
-    active: activeView.value === viewId
+    active: activeView.value === viewId && activeView.value !== 'view-security'
   };
 }
 
@@ -406,6 +402,10 @@ async function copyScript() {
 
 function ackFirstLogin() {
   showFirstLoginModal.value = false;
+  switchView('view-security');
+}
+
+function openSecuritySettings() {
   switchView('view-security');
 }
 
