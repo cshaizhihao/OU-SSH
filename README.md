@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/cshaizhihao/OU-SSH"><img src="https://img.shields.io/badge/release-V1.0.1-blue" alt="release"></a>
+  <a href="https://github.com/cshaizhihao/OU-SSH"><img src="https://img.shields.io/badge/release-V1.0.2-blue" alt="release"></a>
   <a href="https://github.com/cshaizhihao/OU-SSH"><img src="https://img.shields.io/badge/stack-Vue%203%20%2B%20Express%20%2B%20SQLite-green" alt="stack"></a>
   <a href="https://github.com/cshaizhihao/OU-SSH"><img src="https://img.shields.io/badge/deploy-Docker%20Compose-2496ED" alt="deploy"></a>
 </p>
@@ -18,7 +18,7 @@
 
 OU-SSH 是一个轻量级服务器节点管理面板，用于生成 Ed25519 SSH 密钥、托管 GitHub 公钥、渲染新机初始化脚本，并提供本地账号与 GitHub OAuth 登录能力。
 
-当前版本：**V1.0.1**
+当前版本：**V1.0.2**
 
 ## 🚀 核心功能
 
@@ -26,7 +26,7 @@ OU-SSH 是一个轻量级服务器节点管理面板，用于生成 Ed25519 SSH 
 - 🧩 GitHub OAuth 登录、绑定与应用内配置向导
 - 🗝️ Ed25519 SSH 密钥生成，标准 `.zip` 打包下载
 - 🐙 GitHub Username 双向绑定，新机脚本自动渲染
-- 🛡️ 新机初始化脚本支持禁用密码登录、启用公钥登录
+- 🛡️ 新机初始化脚本支持禁用密码登录、禁用键盘交互登录、启用公钥登录
 - 🔧 面板内自定义目标机器 SSH 登录端口，默认 `5522`
 - 🌐 可选域名 HTTPS，Caddy 自动申请证书并自动续签
 - 🚪 会话级登录状态，关闭网页后需重新登录，并支持显式退出
@@ -113,6 +113,7 @@ npm run check
 - 首次登录后请立即修改默认账号密码
 - 执行新机初始化脚本前请保持一个现有 SSH 会话不关闭
 - 修改 SSH 端口和禁用密码登录后，请先新开窗口测试连接
+- 部分云服务器会通过 `sshd_config.d` 或 cloud-init 覆盖 SSH 配置，OU-SSH 会写入高优先级加固配置并验证最终生效值
 - 私钥文件只应保存在本地可信设备，不要上传到服务器或 GitHub
 
 ## 🔗 项目地址

@@ -141,50 +141,7 @@
           </div>
 
           <div class="code-block p-6 text-sm leading-relaxed relative flex-1 min-h-0 overflow-auto">
-<pre><code># 1. 设定绑定的 GitHub 账号
-export GH_USER="<span id="scriptUserRender" class="text-brand-green font-bold">{{ scriptUsername }}</span>"
-export SSH_PORT="<span class="text-brand-green font-bold">{{ scriptSshPort }}</span>"
-
-# 2. 创建目录并拉取公钥
-mkdir -p ~/.ssh && chmod 700 ~/.ssh
-curl -fsSL https://github.com/$GH_USER.keys >> ~/.ssh/authorized_keys
-chmod 600 ~/.ssh/authorized_keys
-
-# 3. 修改 SSH 端口，禁用密码，开启密钥认证
-sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.ou-ssh.bak.$(date +%Y%m%d%H%M%S)
-
-if grep -qE '^[#[:space:]]*Port[[:space:]]+' /etc/ssh/sshd_config; then
-  sudo sed -i -E "s/^[#[:space:]]*Port[[:space:]]+.*/Port $SSH_PORT/" /etc/ssh/sshd_config
-else
-  echo "Port $SSH_PORT" | sudo tee -a /etc/ssh/sshd_config >/dev/null
-fi
-
-if grep -qE '^[#[:space:]]*PasswordAuthentication' /etc/ssh/sshd_config; then
-  sudo sed -i -E 's/^[#[:space:]]*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
-else
-  echo 'PasswordAuthentication no' | sudo tee -a /etc/ssh/sshd_config >/dev/null
-fi
-
-if grep -qE '^[#[:space:]]*PubkeyAuthentication' /etc/ssh/sshd_config; then
-  sudo sed -i -E 's/^[#[:space:]]*PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
-else
-  echo 'PubkeyAuthentication yes' | sudo tee -a /etc/ssh/sshd_config >/dev/null
-fi
-
-# 4. 放行端口并重启 SSH 服务生效
-if command -v ufw >/dev/null 2>&1; then
-  sudo ufw allow "$SSH_PORT/tcp" >/dev/null 2>&1 || true
-fi
-
-if command -v firewall-cmd >/dev/null 2>&1; then
-  sudo firewall-cmd --permanent --add-port="$SSH_PORT/tcp" >/dev/null 2>&1 || true
-  sudo firewall-cmd --reload >/dev/null 2>&1 || true
-fi
-
-sudo sshd -t
-sudo systemctl restart sshd || sudo systemctl restart ssh
-
-echo -e "\n[OK] 公钥部署完成！密码登录已禁用，SSH 端口已设为 $SSH_PORT。"</code></pre>
+<pre><code v-html="scriptForDisplay"></code></pre>
           </div>
         </div>
       </section>
@@ -359,43 +316,54 @@ const githubOAuthForm = reactive({
   callbackUrl: ''
 });
 
-const scriptUsername = computed(() => githubUsername.value.trim() || 'YOUR_GITHUB_USERNAME');
-const scriptSshPort = computed(() => {
-  const parsedPort = Number(sshPort.value);
-  return Number.isInteger(parsedPort) && parsedPort >= 1 && parsedPort <= 65535 ? String(parsedPort) : '5522';
-});
+const SCRIPT_GH_USER_MARKER = '__OU_SSH_GH_USER__';
+const SCRIPT_SSH_PORT_MARKER = '__OU_SSH_SSH_PORT__';
 
-const scriptForCopy = computed(() => `# 1. 设定绑定的 GitHub 账号
-export GH_USER="${scriptUsername.value}"
-export SSH_PORT="${scriptSshPort.value}"
+const scriptTemplate = `# 1. 设定绑定的 GitHub 账号
+export GH_USER="${SCRIPT_GH_USER_MARKER}"
+export SSH_PORT="${SCRIPT_SSH_PORT_MARKER}"
 
 # 2. 创建目录并拉取公钥
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
 curl -fsSL https://github.com/$GH_USER.keys >> ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
 
-# 3. 修改 SSH 端口，禁用密码，开启密钥认证
-sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.ou-ssh.bak.$(date +%Y%m%d%H%M%S)
+# 3. 写入高优先级 SSH 加固配置，禁用所有密码类登录
+SSHD_MAIN="/etc/ssh/sshd_config"
+SSHD_DROPIN_DIR="/etc/ssh/sshd_config.d"
+OU_SSH_DROPIN="$SSHD_DROPIN_DIR/00-ou-ssh-hardening.conf"
+BACKUP_SUFFIX="$(date +%Y%m%d%H%M%S)"
 
-if grep -qE '^[#[:space:]]*Port[[:space:]]+' /etc/ssh/sshd_config; then
-  sudo sed -i -E "s/^[#[:space:]]*Port[[:space:]]+.*/Port $SSH_PORT/" /etc/ssh/sshd_config
-else
-  echo "Port $SSH_PORT" | sudo tee -a /etc/ssh/sshd_config >/dev/null
+sudo cp "$SSHD_MAIN" "$SSHD_MAIN.ou-ssh.bak.$BACKUP_SUFFIX"
+if [ -d "$SSHD_DROPIN_DIR" ]; then
+  sudo tar -czf "/etc/ssh/sshd_config.d.ou-ssh.bak.$BACKUP_SUFFIX.tar.gz" -C /etc/ssh sshd_config.d
+fi
+sudo mkdir -p "$SSHD_DROPIN_DIR"
+
+# 把 OU-SSH 配置放到主配置最前面，避免 cloud-init 或发行版默认文件先启用密码登录
+if ! grep -q '^# OU-SSH managed include$' "$SSHD_MAIN"; then
+  TMP_SSHD_CONFIG="$(mktemp)"
+  {
+    echo '# OU-SSH managed include'
+    echo 'Include /etc/ssh/sshd_config.d/00-ou-ssh-hardening.conf'
+    cat "$SSHD_MAIN"
+  } > "$TMP_SSHD_CONFIG"
+  sudo install -m 644 "$TMP_SSHD_CONFIG" "$SSHD_MAIN"
+  rm -f "$TMP_SSHD_CONFIG"
 fi
 
-if grep -qE '^[#[:space:]]*PasswordAuthentication' /etc/ssh/sshd_config; then
-  sudo sed -i -E 's/^[#[:space:]]*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
-else
-  echo 'PasswordAuthentication no' | sudo tee -a /etc/ssh/sshd_config >/dev/null
-fi
+sudo tee "$OU_SSH_DROPIN" >/dev/null <<EOF
+# Managed by OU-SSH
+Port $SSH_PORT
+PubkeyAuthentication yes
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+ChallengeResponseAuthentication no
+AuthenticationMethods publickey
+PermitRootLogin prohibit-password
+EOF
 
-if grep -qE '^[#[:space:]]*PubkeyAuthentication' /etc/ssh/sshd_config; then
-  sudo sed -i -E 's/^[#[:space:]]*PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
-else
-  echo 'PubkeyAuthentication yes' | sudo tee -a /etc/ssh/sshd_config >/dev/null
-fi
-
-# 4. 放行端口并重启 SSH 服务生效
+# 4. 放行端口并验证最终生效配置
 if command -v ufw >/dev/null 2>&1; then
   sudo ufw allow "$SSH_PORT/tcp" >/dev/null 2>&1 || true
 fi
@@ -406,10 +374,50 @@ if command -v firewall-cmd >/dev/null 2>&1; then
 fi
 
 sudo sshd -t
+EFFECTIVE_CONFIG="$(sudo sshd -T 2>/dev/null || true)"
+echo "$EFFECTIVE_CONFIG" | grep -qx 'pubkeyauthentication yes' || { echo '[ERROR] 公钥认证未生效'; exit 1; }
+echo "$EFFECTIVE_CONFIG" | grep -qx 'passwordauthentication no' || { echo '[ERROR] 密码登录未成功禁用'; exit 1; }
+if echo "$EFFECTIVE_CONFIG" | grep -q '^kbdinteractiveauthentication '; then
+  echo "$EFFECTIVE_CONFIG" | grep -qx 'kbdinteractiveauthentication no' || { echo '[ERROR] 键盘交互密码登录未成功禁用'; exit 1; }
+fi
+
 sudo systemctl restart sshd || sudo systemctl restart ssh
 
-echo -e "\\n[OK] 公钥部署完成！密码登录已禁用，SSH 端口已设为 $SSH_PORT。"
-`);
+echo -e "\n[OK] 公钥部署完成！密码登录已禁用，SSH 端口已设为 $SSH_PORT。"`
+
+function escapeHtml(value) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+const scriptUsername = computed(() => githubUsername.value.trim() || 'YOUR_GITHUB_USERNAME');
+const scriptSshPort = computed(() => {
+  const parsedPort = Number(sshPort.value);
+  return Number.isInteger(parsedPort) && parsedPort >= 1 && parsedPort <= 65535 ? String(parsedPort) : '5522';
+});
+
+const scriptForCopy = computed(() =>
+  scriptTemplate
+    .replaceAll(SCRIPT_GH_USER_MARKER, scriptUsername.value)
+    .replaceAll(SCRIPT_SSH_PORT_MARKER, scriptSshPort.value)
+);
+
+const scriptForDisplay = computed(() => {
+  const escapedTemplate = escapeHtml(scriptTemplate);
+  return escapedTemplate
+    .replaceAll(
+      escapeHtml(SCRIPT_GH_USER_MARKER),
+      `<span id="scriptUserRender" class="text-brand-green font-bold">${escapeHtml(scriptUsername.value)}</span>`
+    )
+    .replaceAll(
+      escapeHtml(SCRIPT_SSH_PORT_MARKER),
+      `<span class="text-brand-green font-bold">${escapeHtml(scriptSshPort.value)}</span>`
+    );
+});
 
 onMounted(async () => {
   const tokenFromQuery = Array.isArray(route.query.token) ? route.query.token[0] : route.query.token;
