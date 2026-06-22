@@ -1,20 +1,46 @@
 # OU-SSH
 
-`v0.1.0`
+[![release](https://img.shields.io/badge/release-v0.2.0-blue)](https://github.com/cshaizhihao/OU-SSH)
+[![stack](https://img.shields.io/badge/stack-Vue%203%20%2B%20Express%20%2B%20SQLite-green)](https://github.com/cshaizhihao/OU-SSH)
 
-OU-SSH 的初始项目工作区。
+OU-SSH 是一个服务器节点管理面板，包含本地登录、GitHub OAuth、SSH 密钥生成、新机初始化脚本和安全设定流程。
 
-## 当前状态
+## 版本
 
-- Git 仓库已初始化
-- 基础环境已准备
-- 尚未加入具体业务代码
+`v0.2.0`
 
-## 仓库
+## 功能
 
-`https://github.com/cshaizhihao/OU-SSH`
+- 本地账号登录
+- GitHub OAuth 登录与绑定
+- Ed25519 SSH 密钥生成与 `.zip` 下载
+- GitHub 用户名驱动的初始化脚本渲染
+- 首次登录强制改密
+- Docker Compose 一键部署
 
-## 约定
+## 安装
 
-- 每次完成一个版本，更新 README 版本号
-- 每次完成一个版本，提交并推送到 GitHub
+```bash
+bash <(curl -sL https://raw.githubusercontent.com/cshaizhihao/OU-SSH/main/install.sh)
+```
+
+默认账号：
+
+- 用户名：`admin`
+- 密码：`admin`
+
+## 本地开发
+
+```bash
+npm install
+npm run dev:api
+npm run dev:web
+```
+
+## 环境变量
+
+复制 `.env.example` 为 `.env` 后按需填写 GitHub OAuth 信息。
+
+## 项目地址
+
+https://github.com/cshaizhihao/OU-SSH

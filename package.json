@@ -1,0 +1,22 @@
+{
+  "name": "ou-ssh",
+  "version": "0.2.0",
+  "private": true,
+  "description": "OU-SSH Server Node Management Panel",
+  "workspaces": [
+    "apps/web",
+    "apps/api"
+  ],
+  "scripts": {
+    "dev": "npm run dev:api & npm run dev:web",
+    "dev:web": "npm run dev --workspace @ou-ssh/web",
+    "dev:api": "npm run dev --workspace @ou-ssh/api",
+    "build": "npm run build --workspace @ou-ssh/web && npm run build --workspace @ou-ssh/api",
+    "check": "npm run check --workspace @ou-ssh/web && npm run check --workspace @ou-ssh/api",
+    "start:api": "npm run start --workspace @ou-ssh/api"
+  },
+  "engines": {
+    "node": ">=22.5.0",
+    "npm": ">=10.0.0"
+  }
+}

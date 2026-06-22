@@ -1,0 +1,8 @@
+.git
+node_modules
+apps/*/node_modules
+apps/*/dist
+data
+apps/api/data
+.env
+*.log

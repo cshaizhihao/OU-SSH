@@ -26,6 +26,10 @@ node_modules/
 venv/
 env/
 
+# Local runtime data
+data/
+apps/api/data/
+
 # Build and cache output
 dist/
 build/
