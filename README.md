@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/cshaizhihao/OU-SSH"><img src="https://img.shields.io/badge/release-V1.0.0-blue" alt="release"></a>
+  <a href="https://github.com/cshaizhihao/OU-SSH"><img src="https://img.shields.io/badge/release-V1.0.1-blue" alt="release"></a>
   <a href="https://github.com/cshaizhihao/OU-SSH"><img src="https://img.shields.io/badge/stack-Vue%203%20%2B%20Express%20%2B%20SQLite-green" alt="stack"></a>
   <a href="https://github.com/cshaizhihao/OU-SSH"><img src="https://img.shields.io/badge/deploy-Docker%20Compose-2496ED" alt="deploy"></a>
 </p>
@@ -18,7 +18,7 @@
 
 OU-SSH 是一个轻量级服务器节点管理面板，用于生成 Ed25519 SSH 密钥、托管 GitHub 公钥、渲染新机初始化脚本，并提供本地账号与 GitHub OAuth 登录能力。
 
-当前版本：**V1.0.0**
+当前版本：**V1.0.1**
 
 ## 🚀 核心功能
 
@@ -45,7 +45,7 @@ bash <(curl -sL https://raw.githubusercontent.com/cshaizhihao/OU-SSH/main/instal
 密码：admin
 ```
 
-安装脚本只部署 OU-SSH 面板，不会修改当前服务器的 SSH 登录端口。目标机器的 SSH 端口在面板“新机初始化指令”中设置。
+安装脚本采用中文交互，会引导选择 IP + 端口访问或域名 HTTPS 访问。脚本只部署 OU-SSH 面板，不会修改当前服务器的 SSH 登录端口；目标机器的 SSH 端口在面板“新机初始化指令”中设置。
 
 ## 🌐 域名 HTTPS 安装
 

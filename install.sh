@@ -8,25 +8,58 @@ ENABLE_HTTPS="${OU_SSH_ENABLE_HTTPS:-}"
 DOMAIN="${OU_SSH_DOMAIN:-}"
 ACME_EMAIL="${ACME_EMAIL:-}"
 
+if [ -t 1 ]; then
+  COLOR_BLUE="$(printf '\033[34m')"
+  COLOR_GREEN="$(printf '\033[32m')"
+  COLOR_YELLOW="$(printf '\033[33m')"
+  COLOR_RED="$(printf '\033[31m')"
+  COLOR_RESET="$(printf '\033[0m')"
+else
+  COLOR_BLUE=""
+  COLOR_GREEN=""
+  COLOR_YELLOW=""
+  COLOR_RED=""
+  COLOR_RESET=""
+fi
+
+step() {
+  printf '\n%s▶ %s%s\n' "$COLOR_BLUE" "$1" "$COLOR_RESET"
+}
+
+success() {
+  printf '%s✔ %s%s\n' "$COLOR_GREEN" "$1" "$COLOR_RESET"
+}
+
+warn() {
+  printf '%s! %s%s\n' "$COLOR_YELLOW" "$1" "$COLOR_RESET"
+}
+
+fail() {
+  printf '%s✖ %s%s\n' "$COLOR_RED" "$1" "$COLOR_RESET" >&2
+  exit 1
+}
+
 banner() {
   cat <<'EOF'
- ██████╗ ██╗   ██╗    ██████╗ ███████╗██╗  ██╗
-██╔═══██╗██║   ██║    ██╔══██╗██╔════╝██║  ██║
-██║   ██║██║   ██║    ██████╔╝███████╗███████║
-██║   ██║██║   ██║    ██╔═══╝ ╚════██║██╔══██║
-╚██████╔╝╚██████╔╝    ██║     ███████║██║  ██║
- ╚═════╝  ╚═════╝     ╚═╝     ╚══════╝╚═╝  ╚═╝
+ ██████╗ ██╗   ██╗      ███████╗███████╗██╗  ██╗
+██╔═══██╗██║   ██║      ██╔════╝██╔════╝██║  ██║
+██║   ██║██║   ██║█████╗███████╗███████╗███████║
+██║   ██║██║   ██║╚════╝╚════██║╚════██║██╔══██║
+╚██████╔╝╚██████╔╝      ███████║███████║██║  ██║
+ ╚═════╝  ╚═════╝       ╚══════╝╚══════╝╚═╝  ╚═╝
+                    OU-SSH
 EOF
 }
 
 require_root() {
   if [ "$(id -u)" -ne 0 ]; then
-    echo "Please run this installer as root."
-    exit 1
+    fail "请使用 root 用户运行安装脚本。"
   fi
 }
 
 ensure_pkg_manager() {
+  step "安装系统依赖"
+
   if command -v apt-get >/dev/null 2>&1; then
     apt-get update -y
     DEBIAN_FRONTEND=noninteractive apt-get install -y git curl openssl ca-certificates
@@ -35,13 +68,17 @@ ensure_pkg_manager() {
   elif command -v yum >/dev/null 2>&1; then
     yum install -y git curl openssl ca-certificates
   else
-    echo "Unsupported package manager."
-    exit 1
+    fail "暂不支持当前系统包管理器，请使用 Debian/Ubuntu、CentOS、Rocky Linux 或 AlmaLinux。"
   fi
+
+  success "系统依赖已就绪"
 }
 
 ensure_docker() {
+  step "检查 Docker 与 Docker Compose"
+
   if ! command -v docker >/dev/null 2>&1; then
+    warn "未检测到 Docker，正在自动安装 Docker..."
     curl -fsSL https://get.docker.com | sh
   fi
 
@@ -50,9 +87,10 @@ ensure_docker() {
   fi
 
   if ! docker compose version >/dev/null 2>&1; then
-    echo "Docker Compose plugin is not available."
-    exit 1
+    fail "Docker Compose 插件不可用，请确认 Docker 已正确安装。"
   fi
+
+  success "Docker 环境已就绪"
 }
 
 ask_yes_no() {
@@ -68,7 +106,7 @@ ask_yes_no() {
   read -r -p "$prompt" answer
   answer="${answer:-$default_answer}"
   case "$answer" in
-    y|Y|yes|YES) return 0 ;;
+    y|Y|yes|YES|Yes|是|是的) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -109,11 +147,18 @@ read_env_value() {
 }
 
 prepare_source() {
+  step "准备 OU-SSH 项目代码"
+
   if [ -d "$TARGET_DIR/.git" ]; then
+    echo "检测到已有安装目录：$TARGET_DIR"
+    echo "正在拉取最新代码..."
     git -C "$TARGET_DIR" pull --ff-only
   else
+    echo "正在克隆项目到：$TARGET_DIR"
     git clone "$REPO_URL" "$TARGET_DIR"
   fi
+
+  success "项目代码已就绪"
 }
 
 load_existing_env_defaults() {
@@ -147,8 +192,10 @@ collect_domain_settings() {
     host_ip="127.0.0.1"
   fi
 
+  step "配置访问方式与 HTTPS 证书"
+
   if [ -z "$ENABLE_HTTPS" ]; then
-    if ask_yes_no "Do you have a domain already pointed to this server (${host_ip})? [y/N] " "n"; then
+    if ask_yes_no "是否已有域名解析到本机 IP（${host_ip}）？输入 y 启用 HTTPS [y/N] " "n"; then
       ENABLE_HTTPS="1"
     else
       ENABLE_HTTPS="0"
@@ -157,17 +204,20 @@ collect_domain_settings() {
 
   if [ "$ENABLE_HTTPS" = "1" ]; then
     if [ -z "$DOMAIN" ]; then
-      DOMAIN="$(ask_value "Domain for OU-SSH, for example ssh.example.com: ")"
+      DOMAIN="$(ask_value "请输入 OU-SSH 面板域名，例如 ssh.example.com：")"
     fi
 
     if [ -z "$DOMAIN" ]; then
-      echo "Domain is required when HTTPS is enabled."
-      exit 1
+      fail "启用 HTTPS 时必须填写已经解析到本机的域名。"
     fi
 
     if [ -z "$ACME_EMAIL" ]; then
-      ACME_EMAIL="$(ask_value "Email for certificate notices [admin@${DOMAIN}]: " "admin@${DOMAIN}")"
+      ACME_EMAIL="$(ask_value "请输入证书通知邮箱 [admin@${DOMAIN}]：" "admin@${DOMAIN}")"
     fi
+
+    success "已启用域名 HTTPS：Caddy 将自动申请证书并处理续签"
+  else
+    success "已选择 IP + 端口访问模式"
   fi
 }
 
@@ -176,6 +226,8 @@ write_env_file() {
   local host_ip
   local env_file
   local env_port
+  step "生成运行配置"
+
   host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
   if [ -z "${host_ip:-}" ]; then
     host_ip="127.0.0.1"
@@ -231,6 +283,7 @@ write_env_file() {
       upsert_env "$env_file" "CORS_ORIGIN" "$frontend_url"
       upsert_env "$env_file" "GITHUB_CALLBACK_URL" "${GITHUB_CALLBACK_URL:-${frontend_url}/api/auth/github/callback}"
     fi
+    success "运行配置已写入 $env_file"
     return
   fi
 
@@ -255,20 +308,27 @@ DEFAULT_ADMIN_PASSWORD=admin
 JWT_SECRET=$(openssl rand -hex 32)
 JWT_EXPIRES_IN=7d
 EOF
+
+  success "运行配置已写入 $env_file"
 }
 
 run_stack() {
+  step "启动 OU-SSH 面板服务"
+
   cd "$TARGET_DIR"
   if [ "$ENABLE_HTTPS" = "1" ]; then
     docker compose -f docker-compose.yml --profile https up -d --build
   else
     docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --build
   fi
+
+  success "服务已启动"
 }
 
 print_summary() {
   local host_ip
   local public_url
+  local access_mode
   host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
   if [ -z "${host_ip:-}" ]; then
     host_ip="127.0.0.1"
@@ -279,13 +339,20 @@ print_summary() {
     public_url="$(grep '^FRONTEND_URL=' "$TARGET_DIR/.env" | tail -n 1 | cut -d= -f2-)"
   fi
 
-  cat <<EOF
+  access_mode="IP + 端口访问"
+  if [ "$ENABLE_HTTPS" = "1" ]; then
+    access_mode="域名 HTTPS 访问"
+  fi
 
-OU-SSH is ready.
-Open: ${public_url}
-Default account: admin
-Default password: admin
-EOF
+  printf '\n%s┌─ OU-SSH 安装完成 ─────────────────────────────%s\n' "$COLOR_GREEN" "$COLOR_RESET"
+  printf '%s│%s  访问方式：%s\n' "$COLOR_GREEN" "$COLOR_RESET" "$access_mode"
+  printf '%s│%s  面板地址：%s\n' "$COLOR_GREEN" "$COLOR_RESET" "$public_url"
+  printf '%s│%s  默认账号：admin\n' "$COLOR_GREEN" "$COLOR_RESET"
+  printf '%s│%s  默认密码：admin\n' "$COLOR_GREEN" "$COLOR_RESET"
+  printf '%s├──────────────────────────────────────────────%s\n' "$COLOR_GREEN" "$COLOR_RESET"
+  printf '%s│%s  首次登录后请立即修改默认账号和密码。\n' "$COLOR_GREEN" "$COLOR_RESET"
+  printf '%s│%s  GitHub OAuth 可在面板「安全设定」中配置。\n' "$COLOR_GREEN" "$COLOR_RESET"
+  printf '%s└──────────────────────────────────────────────%s\n\n' "$COLOR_GREEN" "$COLOR_RESET"
 }
 
 main() {
