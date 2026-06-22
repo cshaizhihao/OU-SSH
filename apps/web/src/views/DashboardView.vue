@@ -62,7 +62,7 @@
                 :class="{ 'opacity-80 cursor-not-allowed': isGenerating }"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                {{ isGenerating ? '生成中...' : '一键生成密钥对' }}
+                {{ generateText }}
               </button>
               <button
                 type="button"
@@ -256,6 +256,7 @@ const zipFilename = ref('ou-ssh-ed25519.zip');
 const githubUsername = ref('');
 const copied = ref(false);
 const showFirstLoginModal = ref(false);
+const generateText = ref('一键生成密钥对');
 const saveText = ref('保存安全设定');
 const githubLinkText = ref('绑定 GitHub 登录');
 
@@ -351,6 +352,7 @@ async function generateKeyPair() {
 
   isGenerating.value = true;
   downloadReady.value = false;
+  generateText.value = '生成中...';
 
   try {
     const response = await fetch(apiUrl(`/keys/generate?alias=${encodeURIComponent(keyAlias.value || 'ou-ssh-generated-key')}`), {
@@ -374,6 +376,9 @@ async function generateKeyPair() {
     zipObjectUrl.value = URL.createObjectURL(blob);
     zipFilename.value = filenameMatch ? filenameMatch[1] : 'ou-ssh-ed25519.zip';
     downloadReady.value = true;
+    generateText.value = '生成完成';
+  } catch (error) {
+    generateText.value = '生成失败，请重试';
   } finally {
     isGenerating.value = false;
   }
@@ -393,7 +398,20 @@ function downloadGeneratedZip() {
 }
 
 async function copyScript() {
-  await navigator.clipboard.writeText(scriptForCopy.value);
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(scriptForCopy.value);
+  } else {
+    const textarea = document.createElement('textarea');
+    textarea.value = scriptForCopy.value;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    textarea.remove();
+  }
+
   copied.value = true;
   window.setTimeout(() => {
     copied.value = false;
