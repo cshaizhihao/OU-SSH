@@ -1,15 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import LoginView from '../views/LoginView.vue';
 import DashboardView from '../views/DashboardView.vue';
-
-const TOKEN_KEY = 'ou-ssh-token';
+import { readSessionToken, writeSessionToken } from '../services/api.js';
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
       path: '/',
-      redirect: () => (localStorage.getItem(TOKEN_KEY) ? '/dashboard' : '/login')
+      redirect: () => (readSessionToken() ? '/dashboard' : '/login')
     },
     {
       path: '/login',
@@ -31,10 +30,10 @@ router.beforeEach((to) => {
   const tokenFromQuery = typeof to.query.token === 'string' ? to.query.token : '';
 
   if (tokenFromQuery) {
-    localStorage.setItem(TOKEN_KEY, tokenFromQuery);
+    writeSessionToken(tokenFromQuery);
   }
 
-  const hasToken = Boolean(localStorage.getItem(TOKEN_KEY));
+  const hasToken = Boolean(readSessionToken());
 
   if (to.meta.requiresAuth && !hasToken) {
     return { path: '/login' };

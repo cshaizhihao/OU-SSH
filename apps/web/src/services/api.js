@@ -1,5 +1,19 @@
 export const TOKEN_KEY = 'ou-ssh-token';
 
+export function readSessionToken() {
+  return sessionStorage.getItem(TOKEN_KEY) || '';
+}
+
+export function writeSessionToken(token) {
+  localStorage.removeItem(TOKEN_KEY);
+
+  if (token) {
+    sessionStorage.setItem(TOKEN_KEY, token);
+  } else {
+    sessionStorage.removeItem(TOKEN_KEY);
+  }
+}
+
 export function apiUrl(path) {
   const base = import.meta.env.VITE_API_BASE || '/api';
   return `${base}${path}`;
@@ -7,7 +21,7 @@ export function apiUrl(path) {
 
 export async function apiRequest(path, options = {}) {
   const headers = new Headers(options.headers || {});
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = readSessionToken();
 
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);

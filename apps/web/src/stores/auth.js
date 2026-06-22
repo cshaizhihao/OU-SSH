@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia';
-import { apiRequest, TOKEN_KEY } from '../services/api.js';
+import { apiRequest, readSessionToken, writeSessionToken } from '../services/api.js';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    token: localStorage.getItem(TOKEN_KEY) || '',
+    token: readSessionToken(),
     user: null
   }),
   getters: {
@@ -13,11 +13,7 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     setToken(token) {
       this.token = token;
-      if (token) {
-        localStorage.setItem(TOKEN_KEY, token);
-      } else {
-        localStorage.removeItem(TOKEN_KEY);
-      }
+      writeSessionToken(token);
     },
     async login(credentials) {
       const data = await apiRequest('/auth/login', {

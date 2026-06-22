@@ -32,18 +32,26 @@
         </nav>
       </div>
 
-      <button type="button" class="mx-4 px-3 py-3 rounded-xl flex items-center gap-3 text-left transition-all hover:bg-brand-blueLight hover:shadow-sm group" @click="openSecuritySettings">
-        <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-md shadow-blue-500/20 overflow-hidden shrink-0">
-          <img :src="logoUrl" alt="Admin" class="w-full h-full object-cover">
-        </div>
-        <div class="text-sm min-w-0 flex-1">
-          <p class="font-bold text-slate-800 truncate">{{ auth.user?.username || 'Admin' }}</p>
-          <p class="text-xs text-slate-500 group-hover:text-brand-blue font-semibold">安全设定</p>
-        </div>
-        <svg class="w-4 h-4 text-slate-400 group-hover:text-brand-blue transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-        </svg>
-      </button>
+      <div class="mx-4 space-y-2">
+        <button type="button" class="w-full px-3 py-3 rounded-xl flex items-center gap-3 text-left transition-all hover:bg-brand-blueLight hover:shadow-sm group" @click="openSecuritySettings">
+          <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-md shadow-blue-500/20 overflow-hidden shrink-0">
+            <img :src="logoUrl" alt="Admin" class="w-full h-full object-cover">
+          </div>
+          <div class="text-sm min-w-0 flex-1">
+            <p class="font-bold text-slate-800 truncate">{{ auth.user?.username || 'Admin' }}</p>
+            <p class="text-xs text-slate-500 group-hover:text-brand-blue font-semibold">安全设定</p>
+          </div>
+          <svg class="w-4 h-4 text-slate-400 group-hover:text-brand-blue transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+          </svg>
+        </button>
+        <button type="button" class="w-full py-2.5 rounded-xl text-xs font-bold outline-btn flex justify-center items-center gap-2" @click="logout">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1"></path>
+          </svg>
+          退出登录
+        </button>
+      </div>
     </aside>
 
     <main class="flex-1 relative z-10 p-10 overflow-hidden flex items-center justify-center">
@@ -541,6 +549,11 @@ function ackFirstLogin() {
 
 function openSecuritySettings() {
   switchView('view-security');
+}
+
+async function logout() {
+  auth.logout();
+  await router.replace('/login');
 }
 
 async function loadGithubOAuthSettings() {
