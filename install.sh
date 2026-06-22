@@ -64,12 +64,20 @@ write_env_file() {
   local frontend_url
   local host_ip
   local env_file
+  local env_port
   host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
   if [ -z "${host_ip:-}" ]; then
     host_ip="127.0.0.1"
   fi
-  frontend_url="http://${host_ip}:${PORT}"
   env_file="$TARGET_DIR/.env"
+  env_port="$PORT"
+
+  if [ -f "$env_file" ] && grep -q '^OU_SSH_PORT=' "$env_file"; then
+    env_port="$(grep '^OU_SSH_PORT=' "$env_file" | tail -n 1 | cut -d= -f2-)"
+  fi
+
+  PORT="$env_port"
+  frontend_url="http://${host_ip}:${PORT}"
 
   if [ -f "$env_file" ] && [ "${OU_SSH_REGENERATE_ENV:-0}" != "1" ]; then
     grep -q '^PORT=' "$env_file" || echo "PORT=3000" >> "$env_file"
@@ -108,6 +116,28 @@ run_stack() {
   docker compose up -d --build
 }
 
+print_summary() {
+  local host_ip
+  local public_url
+  host_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  if [ -z "${host_ip:-}" ]; then
+    host_ip="127.0.0.1"
+  fi
+  public_url="http://${host_ip}:${PORT}"
+
+  if [ -f "$TARGET_DIR/.env" ] && grep -q '^FRONTEND_URL=' "$TARGET_DIR/.env"; then
+    public_url="$(grep '^FRONTEND_URL=' "$TARGET_DIR/.env" | tail -n 1 | cut -d= -f2-)"
+  fi
+
+  cat <<EOF
+
+OU-SSH is ready.
+Open: ${public_url}
+Default account: admin
+Default password: admin
+EOF
+}
+
 main() {
   banner
   require_root
@@ -116,14 +146,7 @@ main() {
   prepare_source
   write_env_file
   run_stack
-
-  cat <<EOF
-
-OU-SSH is ready.
-Open: http://$(hostname -I 2>/dev/null | awk '{print $1}'):${PORT}
-Default account: admin
-Default password: admin
-EOF
+  print_summary
 }
 
 main "$@"
