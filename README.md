@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/cshaizhihao/OU-SSH"><img src="https://img.shields.io/badge/release-V1.0.2-blue" alt="release"></a>
+  <a href="https://github.com/cshaizhihao/OU-SSH"><img src="https://img.shields.io/badge/release-V1.0.3-blue" alt="release"></a>
   <a href="https://github.com/cshaizhihao/OU-SSH"><img src="https://img.shields.io/badge/stack-Vue%203%20%2B%20Express%20%2B%20SQLite-green" alt="stack"></a>
   <a href="https://github.com/cshaizhihao/OU-SSH"><img src="https://img.shields.io/badge/deploy-Docker%20Compose-2496ED" alt="deploy"></a>
 </p>
@@ -18,7 +18,7 @@
 
 OU-SSH 是一个轻量级服务器节点管理面板，用于生成 Ed25519 SSH 密钥、托管 GitHub 公钥、渲染新机初始化脚本，并提供本地账号与 GitHub OAuth 登录能力。
 
-当前版本：**V1.0.2**
+当前版本：**V1.0.3**
 
 ## 🚀 核心功能
 
@@ -29,6 +29,7 @@ OU-SSH 是一个轻量级服务器节点管理面板，用于生成 Ed25519 SSH 
 - 🛡️ 新机初始化脚本支持禁用密码登录、禁用键盘交互登录、启用公钥登录
 - 🔧 面板内自定义目标机器 SSH 登录端口，默认 `5522`
 - 🌐 可选域名 HTTPS，Caddy 自动申请证书并自动续签
+- 🧰 安装后提供 `ou` 快捷管理指令，支持一键升级与一键卸载
 - 🚪 会话级登录状态，关闭网页后需重新登录，并支持显式退出
 - 🐳 Docker Compose 一键部署
 
@@ -46,6 +47,19 @@ bash <(curl -sL https://raw.githubusercontent.com/cshaizhihao/OU-SSH/main/instal
 ```
 
 安装脚本采用中文交互，会引导选择 IP + 端口访问或域名 HTTPS 访问。脚本只部署 OU-SSH 面板，不会修改当前服务器的 SSH 登录端口；目标机器的 SSH 端口在面板“新机初始化指令”中设置。
+
+安装完成后会自动写入快捷管理指令：
+
+```bash
+ou
+```
+
+也可以直接执行：
+
+```bash
+ou upgrade
+ou uninstall
+```
 
 ## 🌐 域名 HTTPS 安装
 

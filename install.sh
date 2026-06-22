@@ -325,6 +325,215 @@ run_stack() {
   success "服务已启动"
 }
 
+install_shortcut() {
+  local shortcut="/usr/local/bin/ou"
+
+  step "安装快捷管理指令"
+
+  {
+    printf '#!/usr/bin/env bash\n'
+    printf 'set -euo pipefail\n\n'
+    printf 'DEFAULT_TARGET_DIR=%q\n\n' "$TARGET_DIR"
+    cat <<'EOF'
+if [ -t 1 ]; then
+  COLOR_BLUE="$(printf '\033[34m')"
+  COLOR_GREEN="$(printf '\033[32m')"
+  COLOR_YELLOW="$(printf '\033[33m')"
+  COLOR_RED="$(printf '\033[31m')"
+  COLOR_RESET="$(printf '\033[0m')"
+else
+  COLOR_BLUE=""
+  COLOR_GREEN=""
+  COLOR_YELLOW=""
+  COLOR_RED=""
+  COLOR_RESET=""
+fi
+
+TARGET_DIR="${OU_SSH_HOME:-$DEFAULT_TARGET_DIR}"
+
+say_step() {
+  printf '\n%s▶ %s%s\n' "$COLOR_BLUE" "$1" "$COLOR_RESET"
+}
+
+say_success() {
+  printf '%s✔ %s%s\n' "$COLOR_GREEN" "$1" "$COLOR_RESET"
+}
+
+say_warn() {
+  printf '%s! %s%s\n' "$COLOR_YELLOW" "$1" "$COLOR_RESET"
+}
+
+say_fail() {
+  printf '%s✖ %s%s\n' "$COLOR_RED" "$1" "$COLOR_RESET" >&2
+  exit 1
+}
+
+require_root() {
+  if [ "$(id -u)" -ne 0 ]; then
+    say_fail "请使用 root 用户运行 ou 管理指令。"
+  fi
+}
+
+ensure_project_dir() {
+  if [ ! -d "$TARGET_DIR/.git" ]; then
+    say_fail "未找到 OU-SSH 安装目录：$TARGET_DIR"
+  fi
+}
+
+is_https_enabled() {
+  [ -f "$TARGET_DIR/.env" ] && grep -q '^OU_SSH_ENABLE_HTTPS=1$' "$TARGET_DIR/.env"
+}
+
+compose_up() {
+  cd "$TARGET_DIR"
+  if is_https_enabled; then
+    docker compose -f docker-compose.yml --profile https up -d --build
+  else
+    docker compose -f docker-compose.yml -f docker-compose.override.yml up -d --build
+  fi
+}
+
+compose_down() {
+  cd "$TARGET_DIR"
+  if is_https_enabled; then
+    docker compose -f docker-compose.yml --profile https down "$@"
+  else
+    docker compose -f docker-compose.yml -f docker-compose.override.yml down "$@"
+  fi
+}
+
+show_banner() {
+  cat <<'EOF_BANNER'
+ ██████╗ ██╗   ██╗      ███████╗███████╗██╗  ██╗
+██╔═══██╗██║   ██║      ██╔════╝██╔════╝██║  ██║
+██║   ██║██║   ██║█████╗███████╗███████╗███████║
+██║   ██║██║   ██║╚════╝╚════██║╚════██║██╔══██║
+╚██████╔╝╚██████╔╝      ███████║███████║██║  ██║
+ ╚═════╝  ╚═════╝       ╚══════╝╚══════╝╚═╝  ╚═╝
+                    OU-SSH
+EOF_BANNER
+}
+
+show_menu() {
+  show_banner
+  cat <<EOF_MENU
+
+请选择要执行的操作：
+
+  1) 一键升级 OU-SSH
+  2) 一键卸载 OU-SSH
+  0) 退出
+
+EOF_MENU
+}
+
+upgrade_ou_ssh() {
+  require_root
+  ensure_project_dir
+
+  say_step "拉取最新项目代码"
+  git -C "$TARGET_DIR" pull --ff-only
+
+  if [ -f "$TARGET_DIR/install.sh" ]; then
+    say_step "刷新 ou 快捷指令"
+    OU_SSH_HOME="$TARGET_DIR" bash "$TARGET_DIR/install.sh" --install-shortcut-only
+  fi
+
+  say_step "重建并启动 OU-SSH 容器"
+  compose_up
+
+  say_success "升级完成"
+}
+
+uninstall_ou_ssh() {
+  local remove_data_answer
+  local remove_files_answer
+
+  require_root
+  ensure_project_dir
+
+  say_warn "即将停止并卸载 OU-SSH。"
+  read -r -p "是否继续？[y/N] " remove_files_answer
+  case "${remove_files_answer:-n}" in
+    y|Y|yes|YES|Yes|是|是的) ;;
+    *) say_warn "已取消卸载"; return ;;
+  esac
+
+  read -r -p "是否同时删除 Docker 数据卷？这会删除数据库和 Caddy 证书 [y/N] " remove_data_answer
+
+  say_step "停止 OU-SSH 容器"
+  case "${remove_data_answer:-n}" in
+    y|Y|yes|YES|Yes|是|是的)
+      compose_down --volumes --remove-orphans
+      ;;
+    *)
+      compose_down --remove-orphans
+      ;;
+  esac
+
+  read -r -p "是否删除项目目录 $TARGET_DIR？[y/N] " remove_files_answer
+  case "${remove_files_answer:-n}" in
+    y|Y|yes|YES|Yes|是|是的)
+      rm -rf "$TARGET_DIR"
+      say_success "项目目录已删除"
+      ;;
+    *)
+      say_warn "已保留项目目录：$TARGET_DIR"
+      ;;
+  esac
+
+  read -r -p "是否删除 ou 快捷指令本身？[y/N] " remove_files_answer
+  case "${remove_files_answer:-n}" in
+    y|Y|yes|YES|Yes|是|是的)
+      rm -f /usr/local/bin/ou
+      say_success "ou 快捷指令已删除"
+      ;;
+    *)
+      say_warn "已保留 ou 快捷指令"
+      ;;
+  esac
+
+  say_success "卸载流程已完成"
+}
+
+main() {
+  local action="${1:-}"
+
+  case "$action" in
+    upgrade|update)
+      upgrade_ou_ssh
+      ;;
+    uninstall|remove)
+      uninstall_ou_ssh
+      ;;
+    ""|menu)
+      show_menu
+      read -r -p "请输入选项编号： " action
+      case "$action" in
+        1) upgrade_ou_ssh ;;
+        2) uninstall_ou_ssh ;;
+        0) exit 0 ;;
+        *) say_fail "无效选项" ;;
+      esac
+      ;;
+    -h|--help|help)
+      show_menu
+      echo "也可以直接执行：ou upgrade 或 ou uninstall"
+      ;;
+    *)
+      say_fail "未知命令：$action。可用命令：ou、ou upgrade、ou uninstall"
+      ;;
+  esac
+}
+
+main "$@"
+EOF
+  } > "$shortcut"
+
+  chmod 755 "$shortcut"
+  success "快捷指令已安装：ou"
+}
+
 print_summary() {
   local host_ip
   local public_url
@@ -352,10 +561,17 @@ print_summary() {
   printf '%s├──────────────────────────────────────────────%s\n' "$COLOR_GREEN" "$COLOR_RESET"
   printf '%s│%s  首次登录后请立即修改默认账号和密码。\n' "$COLOR_GREEN" "$COLOR_RESET"
   printf '%s│%s  GitHub OAuth 可在面板「安全设定」中配置。\n' "$COLOR_GREEN" "$COLOR_RESET"
+  printf '%s│%s  后续可输入 ou 进行升级或卸载。\n' "$COLOR_GREEN" "$COLOR_RESET"
   printf '%s└──────────────────────────────────────────────%s\n\n' "$COLOR_GREEN" "$COLOR_RESET"
 }
 
 main() {
+  if [ "${1:-}" = "--install-shortcut-only" ]; then
+    require_root
+    install_shortcut
+    return
+  fi
+
   banner
   require_root
   ensure_pkg_manager
@@ -365,6 +581,7 @@ main() {
   collect_domain_settings
   write_env_file
   run_stack
+  install_shortcut
   print_summary
 }
 
