@@ -16,17 +16,28 @@ router.get('/generate', requireAuth, (req, res, next) => {
   let publicKey = keyPair.publicKey;
   keyPair = null;
 
+  function cleanupKeys() {
+    if (privateKey) {
+      privateKey.fill(0);
+      privateKey = null;
+    }
+
+    if (publicKey) {
+      publicKey.fill(0);
+      publicKey = null;
+    }
+  }
+
   res.setHeader('Content-Type', 'application/zip');
   res.setHeader('Content-Disposition', `attachment; filename="${alias}-ed25519.zip"`);
   res.setHeader('Cache-Control', 'no-store');
 
-  archive.on('error', next);
-  archive.on('end', () => {
-    privateKey.fill(0);
-    publicKey.fill(0);
-    privateKey = null;
-    publicKey = null;
+  archive.on('error', (error) => {
+    cleanupKeys();
+    next(error);
   });
+  archive.on('end', cleanupKeys);
+  res.on('close', cleanupKeys);
 
   archive.pipe(res);
   archive.append(privateKey, { name: 'id_ed25519', mode: 0o600 });

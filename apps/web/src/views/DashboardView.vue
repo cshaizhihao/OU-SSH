@@ -25,8 +25,12 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
             新机初始化指令
           </a>
-          <a href="#" @click.prevent="switchView('view-security')" :class="navClass('view-security')" class="nav-item px-6 py-3.5 flex items-center gap-3">
+          <a href="#" @click.prevent="switchView('view-docs')" :class="navClass('view-docs')" class="nav-item px-6 py-3.5 flex items-center gap-3">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            操作与安全指南
+          </a>
+          <a href="#" @click.prevent="switchView('view-security')" :class="navClass('view-security')" class="nav-item px-6 py-3.5 flex items-center gap-3">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0-1.105.895-2 2-2s2 .895 2 2-.895 2-2 2-2-.895-2-2zm-4 8v-1a4 4 0 014-4h4a4 4 0 014 4v1M6 10V8a6 6 0 1112 0v2"></path></svg>
             安全设定
           </a>
         </nav>
@@ -148,6 +152,38 @@ fi
 sudo systemctl restart sshd || sudo systemctl restart ssh
 
 echo -e "\n[OK] 公钥部署完成！密码登录已禁用。"</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-docs" class="view-section w-full max-w-2xl" :class="{ active: activeView === 'view-docs' }">
+        <div class="content-card p-8 stagger-card">
+          <h2 class="text-2xl font-extrabold text-slate-800 mb-6">⚠️ 安全操作必读指南</h2>
+
+          <div class="space-y-6">
+            <div class="flex gap-4">
+              <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold shrink-0">1</div>
+              <div>
+                <h3 class="font-bold text-slate-800 mb-1">永远保持一个备用窗口</h3>
+                <p class="text-sm text-slate-600 leading-relaxed">在执行一键禁用密码脚本后，<strong class="text-red-500">千万不要立即关闭当前的 SSH 终端窗口</strong>。如果公钥验证失败，你将无法再次通过密码登录服务器。</p>
+              </div>
+            </div>
+
+            <div class="flex gap-4">
+              <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold shrink-0">2</div>
+              <div>
+                <h3 class="font-bold text-slate-800 mb-1">新建标签页进行测试</h3>
+                <p class="text-sm text-slate-600 leading-relaxed">请在 Termius (或你常用的 SSH 客户端) 中新建一个标签页，将认证方式修改为 Key，并尝试免密登录。确认可以成功进入服务器后，再安全关闭旧窗口。</p>
+              </div>
+            </div>
+
+            <div class="flex gap-4">
+              <div class="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center font-bold shrink-0">3</div>
+              <div>
+                <h3 class="font-bold text-slate-800 mb-1">私钥绝不上云</h3>
+                <p class="text-sm text-slate-600 leading-relaxed">下载的 `.zip` 解压后，请将 `id_ed25519` (私钥文件) 妥善保存在本地电脑的 `~/.ssh/` 目录下。绝对不要将此文件上传至任何服务器中。</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
