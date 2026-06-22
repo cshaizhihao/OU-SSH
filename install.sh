@@ -52,6 +52,18 @@ ensure_docker() {
   fi
 }
 
+upsert_env() {
+  local file="$1"
+  local key="$2"
+  local value="$3"
+
+  if grep -q "^${key}=" "$file"; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$file"
+  else
+    echo "${key}=${value}" >> "$file"
+  fi
+}
+
 prepare_source() {
   if [ -d "$TARGET_DIR/.git" ]; then
     git -C "$TARGET_DIR" pull --ff-only
@@ -80,17 +92,31 @@ write_env_file() {
   frontend_url="http://${host_ip}:${PORT}"
 
   if [ -f "$env_file" ] && [ "${OU_SSH_REGENERATE_ENV:-0}" != "1" ]; then
-    grep -q '^PORT=' "$env_file" || echo "PORT=3000" >> "$env_file"
-    grep -q '^DATA_DIR=' "$env_file" || echo "DATA_DIR=/data" >> "$env_file"
-    grep -q '^DATABASE_PATH=' "$env_file" || echo "DATABASE_PATH=/data/ou-ssh.sqlite" >> "$env_file"
-    grep -q '^FRONTEND_URL=' "$env_file" || echo "FRONTEND_URL=${frontend_url}" >> "$env_file"
-    grep -q '^CORS_ORIGIN=' "$env_file" || echo "CORS_ORIGIN=${frontend_url}" >> "$env_file"
-    grep -q '^GITHUB_CALLBACK_URL=' "$env_file" || echo "GITHUB_CALLBACK_URL=${frontend_url}/api/auth/github/callback" >> "$env_file"
-    grep -q '^OU_SSH_PORT=' "$env_file" || echo "OU_SSH_PORT=${PORT}" >> "$env_file"
-    grep -q '^DEFAULT_ADMIN_USERNAME=' "$env_file" || echo "DEFAULT_ADMIN_USERNAME=admin" >> "$env_file"
-    grep -q '^DEFAULT_ADMIN_PASSWORD=' "$env_file" || echo "DEFAULT_ADMIN_PASSWORD=admin" >> "$env_file"
-    grep -q '^JWT_SECRET=' "$env_file" || echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$env_file"
-    grep -q '^JWT_EXPIRES_IN=' "$env_file" || echo "JWT_EXPIRES_IN=7d" >> "$env_file"
+    grep -q '^PORT=' "$env_file" || upsert_env "$env_file" "PORT" "3000"
+    grep -q '^DATA_DIR=' "$env_file" || upsert_env "$env_file" "DATA_DIR" "/data"
+    grep -q '^DATABASE_PATH=' "$env_file" || upsert_env "$env_file" "DATABASE_PATH" "/data/ou-ssh.sqlite"
+    grep -q '^FRONTEND_URL=' "$env_file" || upsert_env "$env_file" "FRONTEND_URL" "${frontend_url}"
+    grep -q '^CORS_ORIGIN=' "$env_file" || upsert_env "$env_file" "CORS_ORIGIN" "${frontend_url}"
+    grep -q '^GITHUB_CLIENT_ID=' "$env_file" || upsert_env "$env_file" "GITHUB_CLIENT_ID" ""
+    grep -q '^GITHUB_CLIENT_SECRET=' "$env_file" || upsert_env "$env_file" "GITHUB_CLIENT_SECRET" ""
+    grep -q '^GITHUB_CALLBACK_URL=' "$env_file" || upsert_env "$env_file" "GITHUB_CALLBACK_URL" "${frontend_url}/api/auth/github/callback"
+    grep -q '^OU_SSH_PORT=' "$env_file" || upsert_env "$env_file" "OU_SSH_PORT" "${PORT}"
+    grep -q '^DEFAULT_ADMIN_USERNAME=' "$env_file" || upsert_env "$env_file" "DEFAULT_ADMIN_USERNAME" "admin"
+    grep -q '^DEFAULT_ADMIN_PASSWORD=' "$env_file" || upsert_env "$env_file" "DEFAULT_ADMIN_PASSWORD" "admin"
+    grep -q '^JWT_SECRET=' "$env_file" || upsert_env "$env_file" "JWT_SECRET" "$(openssl rand -hex 32)"
+    grep -q '^JWT_EXPIRES_IN=' "$env_file" || upsert_env "$env_file" "JWT_EXPIRES_IN" "7d"
+
+    if [ -n "${GITHUB_CLIENT_ID:-}" ]; then
+      upsert_env "$env_file" "GITHUB_CLIENT_ID" "$GITHUB_CLIENT_ID"
+    fi
+
+    if [ -n "${GITHUB_CLIENT_SECRET:-}" ]; then
+      upsert_env "$env_file" "GITHUB_CLIENT_SECRET" "$GITHUB_CLIENT_SECRET"
+    fi
+
+    if [ -n "${GITHUB_CALLBACK_URL:-}" ]; then
+      upsert_env "$env_file" "GITHUB_CALLBACK_URL" "$GITHUB_CALLBACK_URL"
+    fi
     return
   fi
 
@@ -100,9 +126,9 @@ DATA_DIR=/data
 DATABASE_PATH=/data/ou-ssh.sqlite
 FRONTEND_URL=${frontend_url}
 CORS_ORIGIN=${frontend_url}
-GITHUB_CLIENT_ID=
-GITHUB_CLIENT_SECRET=
-GITHUB_CALLBACK_URL=${frontend_url}/api/auth/github/callback
+GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-}
+GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-}
+GITHUB_CALLBACK_URL=${GITHUB_CALLBACK_URL:-${frontend_url}/api/auth/github/callback}
 OU_SSH_PORT=${PORT}
 DEFAULT_ADMIN_USERNAME=admin
 DEFAULT_ADMIN_PASSWORD=admin

@@ -297,15 +297,31 @@ echo -e "\\n[OK] 公钥部署完成！密码登录已禁用。"
 `);
 
 onMounted(async () => {
-  if (route.query.token) {
+  const tokenFromQuery = Array.isArray(route.query.token) ? route.query.token[0] : route.query.token;
+
+  if (tokenFromQuery) {
+    auth.setToken(tokenFromQuery);
     await router.replace({ path: '/dashboard', query: {} });
   }
 
   try {
     const user = await auth.loadMe();
+    let githubConfigured = false;
+
+    try {
+      const githubStatus = await auth.getGithubOAuthStatus();
+      githubConfigured = Boolean(githubStatus.configured);
+    } catch (error) {
+      githubConfigured = false;
+    }
+
     securityForm.username = user.username;
     githubUsername.value = user.githubLogin || '';
-    githubLinkText.value = user.githubLinked ? '已绑定 GitHub' : '绑定 GitHub 登录';
+    githubLinkText.value = user.githubLinked
+      ? '已绑定 GitHub'
+      : githubConfigured
+        ? '绑定 GitHub 登录'
+        : 'GitHub 未配置';
 
     if (user.mustChangeCredentials) {
       showFirstLoginModal.value = true;
@@ -465,7 +481,11 @@ async function bindGithubLogin() {
     const data = await auth.createGithubLink();
     window.location.href = data.url;
   } catch (error) {
-    githubLinkText.value = auth.mustChangeCredentials ? '请先完成安全设定' : 'GitHub 未配置';
+    const messages = {
+      change_credentials_required: '请先完成安全设定',
+      github_oauth_not_configured: 'GitHub 未配置'
+    };
+    githubLinkText.value = messages[error.message] || '绑定失败';
   }
 }
 </script>

@@ -33,6 +33,9 @@ export const useAuthStore = defineStore('auth', {
       this.user = data.user;
       return data.user;
     },
+    async getGithubOAuthStatus() {
+      return apiRequest('/auth/github/status');
+    },
     async updateProfile(payload) {
       const data = await apiRequest('/security/profile', {
         method: 'PATCH',

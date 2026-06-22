@@ -53,6 +53,12 @@ router.get('/me', requireAuth, (req, res) => {
   return res.json({ user: toPublicUser(req.user) });
 });
 
+router.get('/github/status', (req, res) => {
+  return res.json({
+    configured: isGithubOAuthConfigured()
+  });
+});
+
 router.get('/github', (req, res) => {
   if (!isGithubOAuthConfigured()) {
     return res.redirect(frontendRedirect('/login', { error: 'github_oauth_not_configured' }));

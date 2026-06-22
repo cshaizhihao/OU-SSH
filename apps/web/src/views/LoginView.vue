@@ -101,7 +101,12 @@ const buttonText = ref('验证并登录');
 
 onMounted(() => {
   if (route.query.error) {
-    buttonText.value = 'GitHub 授权失败';
+    const messages = {
+      github_oauth_not_configured: 'GitHub 未配置',
+      github_account_not_linked: 'GitHub 未绑定',
+      github_oauth_invalid_callback: 'GitHub 回调无效'
+    };
+    buttonText.value = messages[route.query.error] || 'GitHub 授权失败';
   }
 
   gsap.from('.ambient-glow-purple, .ambient-glow-blue', {
