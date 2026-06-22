@@ -7,8 +7,6 @@ PORT="${OU_SSH_PORT:-8080}"
 ENABLE_HTTPS="${OU_SSH_ENABLE_HTTPS:-}"
 DOMAIN="${OU_SSH_DOMAIN:-}"
 ACME_EMAIL="${ACME_EMAIL:-}"
-SSH_PORT="${OU_SSH_SSH_PORT:-}"
-CHANGE_SSH_PORT="${OU_SSH_CHANGE_SSH_PORT:-}"
 
 banner() {
   cat <<'EOF'
@@ -123,7 +121,6 @@ load_existing_env_defaults() {
   local existing_value
 
   if [ ! -f "$env_file" ]; then
-    SSH_PORT="${SSH_PORT:-5522}"
     return
   fi
 
@@ -141,18 +138,6 @@ load_existing_env_defaults() {
     existing_value="$(read_env_value "$env_file" "ACME_EMAIL")"
     ACME_EMAIL="${existing_value:-$ACME_EMAIL}"
   fi
-
-  if [ -z "${OU_SSH_SSH_PORT:-}" ]; then
-    existing_value="$(read_env_value "$env_file" "OU_SSH_SSH_PORT")"
-    SSH_PORT="${existing_value:-$SSH_PORT}"
-  fi
-
-  if [ -z "${OU_SSH_CHANGE_SSH_PORT:-}" ]; then
-    existing_value="$(read_env_value "$env_file" "OU_SSH_CHANGE_SSH_PORT")"
-    CHANGE_SSH_PORT="${existing_value:-$CHANGE_SSH_PORT}"
-  fi
-
-  SSH_PORT="${SSH_PORT:-5522}"
 }
 
 collect_domain_settings() {
@@ -183,57 +168,6 @@ collect_domain_settings() {
     if [ -z "$ACME_EMAIL" ]; then
       ACME_EMAIL="$(ask_value "Email for certificate notices [admin@${DOMAIN}]: " "admin@${DOMAIN}")"
     fi
-  fi
-}
-
-configure_ssh_port() {
-  local sshd_config="/etc/ssh/sshd_config"
-
-  if [ -z "$CHANGE_SSH_PORT" ]; then
-    if ask_yes_no "Change SSH login port to ${SSH_PORT}? Keep current session open until tested. [Y/n] " "y"; then
-      CHANGE_SSH_PORT="1"
-    else
-      CHANGE_SSH_PORT="0"
-    fi
-  fi
-
-  if [ "$CHANGE_SSH_PORT" != "1" ]; then
-    return
-  fi
-
-  if ! [[ "$SSH_PORT" =~ ^[0-9]+$ ]] || [ "$SSH_PORT" -lt 1 ] || [ "$SSH_PORT" -gt 65535 ]; then
-    echo "Invalid SSH port: $SSH_PORT"
-    exit 1
-  fi
-
-  if [ ! -f "$sshd_config" ]; then
-    echo "Cannot find $sshd_config, skipping SSH port change."
-    return
-  fi
-
-  cp "$sshd_config" "${sshd_config}.ou-ssh.bak.$(date +%Y%m%d%H%M%S)"
-
-  if grep -qE '^[#[:space:]]*Port[[:space:]]+' "$sshd_config"; then
-    sed -i -E "s|^[#[:space:]]*Port[[:space:]]+.*|Port ${SSH_PORT}|" "$sshd_config"
-  else
-    printf '\nPort %s\n' "$SSH_PORT" >> "$sshd_config"
-  fi
-
-  if command -v sshd >/dev/null 2>&1; then
-    sshd -t
-  fi
-
-  if command -v ufw >/dev/null 2>&1; then
-    ufw allow "${SSH_PORT}/tcp" >/dev/null 2>&1 || true
-  fi
-
-  if command -v firewall-cmd >/dev/null 2>&1; then
-    firewall-cmd --permanent --add-port="${SSH_PORT}/tcp" >/dev/null 2>&1 || true
-    firewall-cmd --reload >/dev/null 2>&1 || true
-  fi
-
-  if command -v systemctl >/dev/null 2>&1; then
-    systemctl restart sshd 2>/dev/null || systemctl restart ssh 2>/dev/null || true
   fi
 }
 
@@ -291,8 +225,6 @@ write_env_file() {
     upsert_env "$env_file" "OU_SSH_SITE_ADDRESS" "${DOMAIN}"
     upsert_env "$env_file" "OU_SSH_HTTP_PORT" "80"
     upsert_env "$env_file" "OU_SSH_HTTPS_PORT" "443"
-    upsert_env "$env_file" "OU_SSH_SSH_PORT" "$SSH_PORT"
-    upsert_env "$env_file" "OU_SSH_CHANGE_SSH_PORT" "$CHANGE_SSH_PORT"
 
     if [ "$ENABLE_HTTPS" = "1" ]; then
       upsert_env "$env_file" "FRONTEND_URL" "$frontend_url"
@@ -318,8 +250,6 @@ ACME_EMAIL=${ACME_EMAIL}
 OU_SSH_SITE_ADDRESS=${DOMAIN}
 OU_SSH_HTTP_PORT=80
 OU_SSH_HTTPS_PORT=443
-OU_SSH_SSH_PORT=${SSH_PORT}
-OU_SSH_CHANGE_SSH_PORT=${CHANGE_SSH_PORT}
 DEFAULT_ADMIN_USERNAME=admin
 DEFAULT_ADMIN_PASSWORD=admin
 JWT_SECRET=$(openssl rand -hex 32)
@@ -355,16 +285,7 @@ OU-SSH is ready.
 Open: ${public_url}
 Default account: admin
 Default password: admin
-SSH port: ${SSH_PORT}
 EOF
-
-  if [ "$CHANGE_SSH_PORT" = "1" ]; then
-    cat <<EOF
-
-SSH login port was configured as ${SSH_PORT}.
-Keep this terminal open and test a new SSH session before closing it.
-EOF
-  fi
 }
 
 main() {
@@ -375,7 +296,6 @@ main() {
   prepare_source
   load_existing_env_defaults
   collect_domain_settings
-  configure_ssh_port
   write_env_file
   run_stack
   print_summary

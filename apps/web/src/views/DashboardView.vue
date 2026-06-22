@@ -122,16 +122,30 @@
             </button>
           </div>
 
+          <div class="mb-4">
+            <label class="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">SSH 登录端口</label>
+            <input v-model="sshPort" type="number" min="1" max="65535" class="w-full px-4 py-3 rounded-xl text-sm flat-input font-medium">
+          </div>
+
           <div class="code-block p-6 text-sm leading-relaxed relative flex-1">
 <pre><code># 1. 设定绑定的 GitHub 账号
 export GH_USER="<span id="scriptUserRender" class="text-brand-green font-bold">{{ scriptUsername }}</span>"
+export SSH_PORT="<span class="text-brand-green font-bold">{{ scriptSshPort }}</span>"
 
 # 2. 创建目录并拉取公钥
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
 curl -fsSL https://github.com/$GH_USER.keys >> ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
 
-# 3. 强制禁用密码，开启密钥认证
+# 3. 修改 SSH 端口，禁用密码，开启密钥认证
+sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.ou-ssh.bak.$(date +%Y%m%d%H%M%S)
+
+if grep -qE '^[#[:space:]]*Port[[:space:]]+' /etc/ssh/sshd_config; then
+  sudo sed -i -E "s/^[#[:space:]]*Port[[:space:]]+.*/Port $SSH_PORT/" /etc/ssh/sshd_config
+else
+  echo "Port $SSH_PORT" | sudo tee -a /etc/ssh/sshd_config >/dev/null
+fi
+
 if grep -qE '^[#[:space:]]*PasswordAuthentication' /etc/ssh/sshd_config; then
   sudo sed -i -E 's/^[#[:space:]]*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
 else
@@ -144,10 +158,20 @@ else
   echo 'PubkeyAuthentication yes' | sudo tee -a /etc/ssh/sshd_config >/dev/null
 fi
 
-# 4. 重启 SSH 服务生效
+# 4. 放行端口并重启 SSH 服务生效
+if command -v ufw >/dev/null 2>&1; then
+  sudo ufw allow "$SSH_PORT/tcp" >/dev/null 2>&1 || true
+fi
+
+if command -v firewall-cmd >/dev/null 2>&1; then
+  sudo firewall-cmd --permanent --add-port="$SSH_PORT/tcp" >/dev/null 2>&1 || true
+  sudo firewall-cmd --reload >/dev/null 2>&1 || true
+fi
+
+sudo sshd -t
 sudo systemctl restart sshd || sudo systemctl restart ssh
 
-echo -e "\n[OK] 公钥部署完成！密码登录已禁用。"</code></pre>
+echo -e "\n[OK] 公钥部署完成！密码登录已禁用，SSH 端口已设为 $SSH_PORT。"</code></pre>
           </div>
         </div>
       </section>
@@ -297,6 +321,7 @@ const downloadReady = ref(false);
 const zipObjectUrl = ref('');
 const zipFilename = ref('ou-ssh-ed25519.zip');
 const githubUsername = ref('');
+const sshPort = ref('5522');
 const copied = ref(false);
 const showFirstLoginModal = ref(false);
 const generateText = ref('一键生成密钥对');
@@ -321,16 +346,29 @@ const githubOAuthForm = reactive({
 });
 
 const scriptUsername = computed(() => githubUsername.value.trim() || 'YOUR_GITHUB_USERNAME');
+const scriptSshPort = computed(() => {
+  const parsedPort = Number(sshPort.value);
+  return Number.isInteger(parsedPort) && parsedPort >= 1 && parsedPort <= 65535 ? String(parsedPort) : '5522';
+});
 
 const scriptForCopy = computed(() => `# 1. 设定绑定的 GitHub 账号
 export GH_USER="${scriptUsername.value}"
+export SSH_PORT="${scriptSshPort.value}"
 
 # 2. 创建目录并拉取公钥
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
 curl -fsSL https://github.com/$GH_USER.keys >> ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
 
-# 3. 强制禁用密码，开启密钥认证
+# 3. 修改 SSH 端口，禁用密码，开启密钥认证
+sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.ou-ssh.bak.$(date +%Y%m%d%H%M%S)
+
+if grep -qE '^[#[:space:]]*Port[[:space:]]+' /etc/ssh/sshd_config; then
+  sudo sed -i -E "s/^[#[:space:]]*Port[[:space:]]+.*/Port $SSH_PORT/" /etc/ssh/sshd_config
+else
+  echo "Port $SSH_PORT" | sudo tee -a /etc/ssh/sshd_config >/dev/null
+fi
+
 if grep -qE '^[#[:space:]]*PasswordAuthentication' /etc/ssh/sshd_config; then
   sudo sed -i -E 's/^[#[:space:]]*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
 else
@@ -343,10 +381,20 @@ else
   echo 'PubkeyAuthentication yes' | sudo tee -a /etc/ssh/sshd_config >/dev/null
 fi
 
-# 4. 重启 SSH 服务生效
+# 4. 放行端口并重启 SSH 服务生效
+if command -v ufw >/dev/null 2>&1; then
+  sudo ufw allow "$SSH_PORT/tcp" >/dev/null 2>&1 || true
+fi
+
+if command -v firewall-cmd >/dev/null 2>&1; then
+  sudo firewall-cmd --permanent --add-port="$SSH_PORT/tcp" >/dev/null 2>&1 || true
+  sudo firewall-cmd --reload >/dev/null 2>&1 || true
+fi
+
+sudo sshd -t
 sudo systemctl restart sshd || sudo systemctl restart ssh
 
-echo -e "\\n[OK] 公钥部署完成！密码登录已禁用。"
+echo -e "\\n[OK] 公钥部署完成！密码登录已禁用，SSH 端口已设为 $SSH_PORT。"
 `);
 
 onMounted(async () => {
