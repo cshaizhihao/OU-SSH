@@ -1,0 +1,7 @@
+{
+  email {$ACME_EMAIL}
+}
+
+{$OU_SSH_SITE_ADDRESS} {
+  reverse_proxy web:80
+}

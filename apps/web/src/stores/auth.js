@@ -36,6 +36,15 @@ export const useAuthStore = defineStore('auth', {
     async getGithubOAuthStatus() {
       return apiRequest('/auth/github/status');
     },
+    async getGithubOAuthSettings() {
+      return apiRequest('/security/github-oauth');
+    },
+    async updateGithubOAuthSettings(payload) {
+      return apiRequest('/security/github-oauth', {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+    },
     async updateProfile(payload) {
       const data = await apiRequest('/security/profile', {
         method: 'PATCH',

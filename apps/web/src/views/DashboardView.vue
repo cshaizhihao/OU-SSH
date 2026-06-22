@@ -185,7 +185,7 @@ echo -e "\n[OK] 公钥部署完成！密码登录已禁用。"</code></pre>
       </section>
 
       <section id="view-security" class="view-section w-full max-w-2xl" :class="{ active: activeView === 'view-security' }">
-        <div class="content-card p-8 stagger-card">
+        <div class="content-card p-8 stagger-card max-h-[calc(100vh-5rem)] overflow-y-auto">
           <h2 class="text-2xl font-extrabold text-slate-800 mb-2">安全设定</h2>
           <p class="text-sm text-slate-500 mb-8">修改系统登录账号与密码，并绑定 GitHub 授权登录。</p>
 
@@ -220,6 +220,49 @@ echo -e "\n[OK] 公钥部署完成！密码登录已禁用。"</code></pre>
               </button>
             </div>
           </form>
+
+          <div class="mt-6 pt-6 border-t border-slate-100 space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="font-bold text-slate-800">GitHub OAuth 配置</h3>
+                <p class="text-xs text-slate-500 mt-1">创建 OAuth App 后粘贴 Client ID 与 Secret。</p>
+              </div>
+              <span class="px-3 py-1 rounded-full text-xs font-bold" :class="githubOAuthConfigured ? 'bg-green-50 text-green-600' : 'bg-slate-100 text-slate-500'">
+                {{ githubOAuthConfigured ? '已配置' : '未配置' }}
+              </span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Client ID</label>
+                <input v-model="githubOAuthForm.clientId" type="text" class="w-full px-4 py-3 rounded-xl text-sm flat-input font-medium" placeholder="GitHub OAuth Client ID">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Client Secret</label>
+                <input v-model="githubOAuthForm.clientSecret" type="password" class="w-full px-4 py-3 rounded-xl text-sm flat-input font-medium" placeholder="GitHub OAuth Client Secret">
+              </div>
+            </div>
+
+            <div class="p-4 bg-blue-50 rounded-xl border border-blue-100">
+              <p class="text-xs font-bold text-blue-800 mb-2">Authorization callback URL</p>
+              <div class="flex gap-2">
+                <input v-model="githubOAuthForm.callbackUrl" type="text" class="flex-1 px-3 py-2 rounded-lg text-xs flat-input font-mono">
+                <button type="button" @click="copyGithubCallbackUrl" class="px-3 py-2 bg-white text-brand-blue font-bold rounded-lg shadow-sm hover:shadow transition-all text-xs">
+                  {{ callbackCopyText }}
+                </button>
+              </div>
+              <p class="text-xs text-blue-700 mt-2">OAuth App 权限范围：read:user user:email</p>
+            </div>
+
+            <div class="flex gap-4">
+              <a :href="githubOAuthCreateUrl" target="_blank" class="flex-1 py-3 rounded-xl text-sm font-bold outline-btn flex justify-center items-center gap-2">
+                打开 GitHub 创建页
+              </a>
+              <button type="button" @click="saveGithubOAuthSettings" class="flex-1 py-3 rounded-xl text-sm font-bold text-white bg-brand-blue hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30 flex justify-center items-center gap-2">
+                {{ githubOAuthSaveText }}
+              </button>
+            </div>
+          </div>
         </div>
       </section>
     </main>
@@ -259,12 +302,22 @@ const showFirstLoginModal = ref(false);
 const generateText = ref('一键生成密钥对');
 const saveText = ref('保存安全设定');
 const githubLinkText = ref('绑定 GitHub 登录');
+const githubOAuthConfigured = ref(false);
+const githubOAuthCreateUrl = ref('https://github.com/settings/applications/new');
+const githubOAuthSaveText = ref('保存 OAuth 配置');
+const callbackCopyText = ref('复制');
 
 const securityForm = reactive({
   username: '',
   currentPassword: '',
   newPassword: '',
   confirmPassword: ''
+});
+
+const githubOAuthForm = reactive({
+  clientId: '',
+  clientSecret: '',
+  callbackUrl: ''
 });
 
 const scriptUsername = computed(() => githubUsername.value.trim() || 'YOUR_GITHUB_USERNAME');
@@ -306,20 +359,13 @@ onMounted(async () => {
 
   try {
     const user = await auth.loadMe();
-    let githubConfigured = false;
-
-    try {
-      const githubStatus = await auth.getGithubOAuthStatus();
-      githubConfigured = Boolean(githubStatus.configured);
-    } catch (error) {
-      githubConfigured = false;
-    }
+    await loadGithubOAuthSettings();
 
     securityForm.username = user.username;
     githubUsername.value = user.githubLogin || '';
     githubLinkText.value = user.githubLinked
       ? '已绑定 GitHub'
-      : githubConfigured
+      : githubOAuthConfigured.value
         ? '绑定 GitHub 登录'
         : 'GitHub 未配置';
 
@@ -443,6 +489,21 @@ function openSecuritySettings() {
   switchView('view-security');
 }
 
+async function loadGithubOAuthSettings() {
+  try {
+    const settings = await auth.getGithubOAuthSettings();
+    githubOAuthConfigured.value = Boolean(settings.configured);
+    githubOAuthForm.clientId = settings.clientId || '';
+    githubOAuthForm.clientSecret = '';
+    githubOAuthForm.callbackUrl = settings.callbackUrl || settings.defaultCallbackUrl || '';
+    githubOAuthCreateUrl.value = settings.createUrl || 'https://github.com/settings/applications/new';
+  } catch (error) {
+    const status = await auth.getGithubOAuthStatus();
+    githubOAuthConfigured.value = Boolean(status.configured);
+    githubOAuthForm.callbackUrl = status.callbackUrl || '';
+  }
+}
+
 async function saveSecuritySettings() {
   if (securityForm.newPassword !== securityForm.confirmPassword) {
     saveText.value = '两次密码不一致';
@@ -468,9 +529,60 @@ async function saveSecuritySettings() {
       current_password_invalid: '当前密码错误',
       new_password_required: '请输入新密码',
       password_too_short: '密码至少 6 位',
-      username_required: '请输入账号'
+      username_required: '请输入账号',
+      username_exists: '账号已存在'
     };
     saveText.value = messages[error.message] || '保存失败';
+  }
+}
+
+async function copyGithubCallbackUrl() {
+  const callbackUrl = githubOAuthForm.callbackUrl;
+
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(callbackUrl);
+  } else {
+    const textarea = document.createElement('textarea');
+    textarea.value = callbackUrl;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    textarea.remove();
+  }
+
+  callbackCopyText.value = '已复制';
+  window.setTimeout(() => {
+    callbackCopyText.value = '复制';
+  }, 1500);
+}
+
+async function saveGithubOAuthSettings() {
+  githubOAuthSaveText.value = '保存中...';
+
+  try {
+    const settings = await auth.updateGithubOAuthSettings({
+      clientId: githubOAuthForm.clientId,
+      clientSecret: githubOAuthForm.clientSecret,
+      callbackUrl: githubOAuthForm.callbackUrl
+    });
+    githubOAuthConfigured.value = Boolean(settings.configured);
+    githubOAuthForm.clientId = settings.clientId || '';
+    githubOAuthForm.clientSecret = '';
+    githubOAuthForm.callbackUrl = settings.callbackUrl || '';
+    githubLinkText.value = auth.user?.githubLinked ? '已绑定 GitHub' : '绑定 GitHub 登录';
+    githubOAuthSaveText.value = '已保存';
+  } catch (error) {
+    const messages = {
+      change_credentials_required: '先完成安全设定',
+      github_client_id_required: '缺少 Client ID',
+      github_client_secret_required: '缺少 Client Secret',
+      github_callback_url_required: '缺少回调地址',
+      github_callback_url_invalid: '回调地址无效'
+    };
+    githubOAuthSaveText.value = messages[error.message] || '保存失败';
   }
 }
 

@@ -13,6 +13,7 @@ const { issueAccessToken } = require('../services/tokens.js');
 const {
   buildGithubAuthorizeUrl,
   exchangeGithubCode,
+  getGithubOAuthConfig,
   isGithubOAuthConfigured,
   verifyOAuthState
 } = require('../services/github.js');
@@ -54,8 +55,11 @@ router.get('/me', requireAuth, (req, res) => {
 });
 
 router.get('/github/status', (req, res) => {
+  const oauthConfig = getGithubOAuthConfig();
+
   return res.json({
-    configured: isGithubOAuthConfigured()
+    configured: isGithubOAuthConfigured(),
+    callbackUrl: oauthConfig.callbackUrl
   });
 });
 

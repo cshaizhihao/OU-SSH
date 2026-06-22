@@ -1,16 +1,27 @@
 const { URLSearchParams } = require('node:url');
 const { config } = require('../config.js');
+const { getGithubOAuthSettings } = require('./settings.js');
 const { issueOAuthState, verifyOAuthState } = require('./tokens.js');
 
+function getGithubOAuthConfig() {
+  return getGithubOAuthSettings({
+    clientId: config.githubClientId,
+    clientSecret: config.githubClientSecret,
+    callbackUrl: config.githubCallbackUrl
+  });
+}
+
 function isGithubOAuthConfigured() {
-  return Boolean(config.githubClientId && config.githubClientSecret);
+  const oauthConfig = getGithubOAuthConfig();
+  return Boolean(oauthConfig.clientId && oauthConfig.clientSecret);
 }
 
 function buildGithubAuthorizeUrl(mode, userId) {
   const state = issueOAuthState({ mode, userId });
+  const oauthConfig = getGithubOAuthConfig();
   const params = new URLSearchParams({
-    client_id: config.githubClientId,
-    redirect_uri: config.githubCallbackUrl,
+    client_id: oauthConfig.clientId,
+    redirect_uri: oauthConfig.callbackUrl,
     scope: 'read:user user:email',
     state
   });
@@ -19,6 +30,7 @@ function buildGithubAuthorizeUrl(mode, userId) {
 }
 
 async function exchangeGithubCode(code) {
+  const oauthConfig = getGithubOAuthConfig();
   const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
     method: 'POST',
     headers: {
@@ -26,10 +38,10 @@ async function exchangeGithubCode(code) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      client_id: config.githubClientId,
-      client_secret: config.githubClientSecret,
+      client_id: oauthConfig.clientId,
+      client_secret: oauthConfig.clientSecret,
       code,
-      redirect_uri: config.githubCallbackUrl
+      redirect_uri: oauthConfig.callbackUrl
     })
   });
 
@@ -59,6 +71,7 @@ async function exchangeGithubCode(code) {
 module.exports = {
   buildGithubAuthorizeUrl,
   exchangeGithubCode,
+  getGithubOAuthConfig,
   isGithubOAuthConfigured,
   verifyOAuthState
 };
