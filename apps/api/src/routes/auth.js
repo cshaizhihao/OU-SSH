@@ -66,6 +66,10 @@ router.post('/github/link', requireAuth, (req, res) => {
     return res.status(503).json({ error: 'github_oauth_not_configured' });
   }
 
+  if (req.user.must_change_credentials) {
+    return res.status(403).json({ error: 'change_credentials_required' });
+  }
+
   return res.json({
     url: buildGithubAuthorizeUrl('link', req.user.id)
   });

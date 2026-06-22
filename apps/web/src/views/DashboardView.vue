@@ -459,7 +459,7 @@ async function bindGithubLogin() {
     const data = await auth.createGithubLink();
     window.location.href = data.url;
   } catch (error) {
-    githubLinkText.value = 'GitHub 未配置';
+    githubLinkText.value = auth.mustChangeCredentials ? '请先完成安全设定' : 'GitHub 未配置';
   }
 }
 </script>

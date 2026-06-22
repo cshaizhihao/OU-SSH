@@ -45,11 +45,19 @@ function updateProfile(userId, payload) {
     throw new Error('username_required');
   }
 
+  if (!currentPassword || !verifyPassword(current, currentPassword)) {
+    throw new Error('current_password_invalid');
+  }
+
   if (nextUsername !== current.username) {
     const duplicated = findUserByUsername(nextUsername);
     if (duplicated && duplicated.id !== current.id) {
       throw new Error('username_exists');
     }
+  }
+
+  if (current.must_change_credentials && nextUsername === current.username) {
+    throw new Error('new_username_required');
   }
 
   if (current.must_change_credentials && !nextPassword) {
@@ -58,10 +66,6 @@ function updateProfile(userId, payload) {
 
   if (nextPassword && nextPassword.length < 6) {
     throw new Error('password_too_short');
-  }
-
-  if (nextPassword && !verifyPassword(current, currentPassword)) {
-    throw new Error('current_password_invalid');
   }
 
   const passwordHash = nextPassword
