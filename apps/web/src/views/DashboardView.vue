@@ -119,7 +119,7 @@
       </section>
 
       <section id="view-script" class="view-section w-full max-w-3xl" :class="{ active: activeView === 'view-script' }">
-        <div class="content-card p-8 stagger-card flex flex-col h-full">
+        <div class="content-card p-8 stagger-card flex flex-col h-[calc(100vh-5rem)] min-h-0 overflow-hidden">
           <div class="flex justify-between items-center mb-6">
             <div>
               <h2 class="text-2xl font-extrabold text-slate-800 mb-1">一键加固与部署脚本</h2>
@@ -140,7 +140,7 @@
             <input v-model="sshPort" type="number" min="1" max="65535" class="w-full px-4 py-3 rounded-xl text-sm flat-input font-medium">
           </div>
 
-          <div class="code-block p-6 text-sm leading-relaxed relative flex-1">
+          <div class="code-block p-6 text-sm leading-relaxed relative flex-1 min-h-0 overflow-auto">
 <pre><code># 1. 设定绑定的 GitHub 账号
 export GH_USER="<span id="scriptUserRender" class="text-brand-green font-bold">{{ scriptUsername }}</span>"
 export SSH_PORT="<span class="text-brand-green font-bold">{{ scriptSshPort }}</span>"
