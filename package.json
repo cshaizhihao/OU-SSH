@@ -1,6 +1,6 @@
 {
   "name": "ou-ssh",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "OU-SSH Server Node Management Panel",
   "workspaces": [
